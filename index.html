@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 虛擬病人：讓 AI 扮演病人，訓練護理師臨床判斷</title>
+  <style>
+    /* ==========================================================================
+       現代醫療教育風格：深藍、湖水綠、純白、石板灰 (無外聯 CDN，完全離線可用)
+       響應式 16:9 寬螢幕教學簡報設計 (支援 1920×1080, 1600×900, 1366×768)
+       ========================================================================== */
+    :root {
+      --primary-navy: #0f2b48;
+      --secondary-navy: #1a3a60;
+      --accent-teal: #0d9488;
+      --teal-light: #ccfbf1;
+      --teal-hover: #0f766e;
+      --teal-glow: rgba(13, 148, 136, 0.2);
+      --bg-slate: #f8fafc;
+      --surface-white: #ffffff;
+      --border-color: #cbd5e1;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --danger-red: #b91c1c;
+      --danger-bg: #fef2f2;
+      --warning-amber: #b45309;
+      --warning-bg: #fffbeb;
+      --success-green: #15803d;
+      --success-bg: #f0fdf4;
+      --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+
+      /* 響應式字體與間距尺度變數 (以 1080p 為基礎基準) */
+      --title-size: clamp(26px, 1.85vw, 34px);
+      --subtitle-size: clamp(18px, 1.25vw, 24px);
+      --card-title-size: clamp(18px, 1.15vw, 22px);
+      --body-size: clamp(16.5px, 1.1vw, 21px);
+      --card-text-size: clamp(15.5px, 1.05vw, 19.5px);
+      --alert-text-size: clamp(15px, 1vw, 18px);
+      --table-font-size: clamp(14px, 0.92vw, 17px);
+      --btn-font-size: clamp(16px, 0.95vw, 18px);
+      --stat-num-size: clamp(26px, 1.9vw, 36px);
+      --slide-padding-v: clamp(14px, 1.8vh, 24px);
+      --slide-padding-h: clamp(20px, 2.2vw, 36px);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", "微軟正黑體", sans-serif;
+      background: #081524; /* 純淨深藍暗色背景，大幅減少留白壓迫 */
+      color: var(--text-main);
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    /* 16:9 寬螢幕主容器：填滿可用視窗 96vw / 95vh，自適應鎖定 16:9 比例 */
+    .deck-viewport {
+      width: 98vw;
+      height: 97vh;
+      max-width: calc(97vh * (16 / 9));
+      max-height: calc(98vw * (9 / 16));
+      aspect-ratio: 16 / 9;
+      background: var(--bg-slate);
+      border-radius: 12px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.12);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* 頂部進度條與資訊列 */
+    .deck-header {
+      background: var(--primary-navy);
+      color: #ffffff;
+      padding: 10px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2.5px solid var(--accent-teal);
+      font-size: clamp(15px, 0.95vw, 17px);
+      letter-spacing: 0.02em;
+      user-select: none;
+      flex-shrink: 0;
+      min-height: 48px;
+    }
+
+    .deck-header .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+    }
+
+    .badge-tag {
+      background: rgba(13, 148, 136, 0.25);
+      border: 1px solid var(--accent-teal);
+      color: #5eead4;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: clamp(13px, 0.8vw, 15px);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .progress-track {
+      flex: 1;
+      max-width: 320px;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      margin: 0 20px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent-teal);
+      width: 8.33%;
+      transition: width 0.3s ease;
+    }
+
+    .page-indicator {
+      font-weight: 700;
+      color: #cbd5e1;
+      font-variant-numeric: tabular-nums;
+      font-size: var(--btn-font-size);
+    }
+
+    /* 投影片內容容器 */
+    .deck-content {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #ffffff;
+    }
+
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: var(--slide-padding-v) var(--slide-padding-h);
+      display: none;
+      flex-direction: column;
+      background: #ffffff;
+      opacity: 0;
+      transform: translateX(15px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      overflow-y: auto;
+    }
+
+    .slide.active {
+      display: flex;
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* 標題與引文標籤 */
+    .slide-header {
+      margin-bottom: clamp(10px, 1.2vh, 16px);
+      border-bottom: 1.5px solid #e2e8f0;
+      padding-bottom: clamp(6px, 1vh, 10px);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    .slide-title-group h2 {
+      font-size: var(--title-size);
+      font-weight: 800;
+      color: var(--primary-navy);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      line-height: 1.25;
+    }
+
+    .slide-subtitle {
+      font-size: var(--subtitle-size);
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+
+    .ref-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .ref-badge {
+      display: inline-block;
+      background: #e0f2fe;
+      color: #0369a1;
+      font-weight: 700;
+      font-size: clamp(13px, 0.8vw, 15px);
+      padding: 3px 9px;
+      border-radius: 4px;
+      border: 1px solid #bae6fd;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .ref-badge:hover {
+      background: #bae6fd;
+    }
+
+    /* 網格與卡片排版 */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(14px, 1.5vw, 22px);
+      flex: 1;
+      align-items: stretch;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: clamp(12px, 1.2vw, 18px);
+      flex: 1;
+      align-items: stretch;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      padding: clamp(12px, 1.3vh, 18px) clamp(14px, 1.4vw, 20px);
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card.teal-top {
+      border-top: 5px solid var(--accent-teal);
+    }
+
+    .card.navy-top {
+      border-top: 5px solid var(--primary-navy);
+    }
+
+    .card.amber-top {
+      border-top: 5px solid var(--warning-amber);
+    }
+
+    .card-title {
+      font-size: var(--card-title-size);
+      font-weight: 700;
+      color: var(--secondary-navy);
+      margin-bottom: clamp(6px, 0.8vh, 10px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      line-height: 1.3;
+    }
+
+    .card p, .card li {
+      font-size: var(--card-text-size);
+      line-height: 1.5;
+      color: #334155;
+    }
+
+    ul.bullet-list {
+      padding-left: 20px;
+      margin-top: 6px;
+    }
+
+    ul.bullet-list li {
+      margin-bottom: 6px;
+    }
+
+    /* 警告與界線警示盒 */
+    .alert-box {
+      border-radius: 6px;
+      padding: clamp(8px, 1vh, 12px) clamp(12px, 1.2vw, 16px);
+      margin-top: clamp(8px, 1vh, 12px);
+      font-size: var(--alert-text-size);
+      line-height: 1.48;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .alert-warning {
+      background: var(--warning-bg);
+      border-left: 5px solid var(--warning-amber);
+      color: #92400e;
+    }
+
+    .alert-danger {
+      background: var(--danger-bg);
+      border-left: 5px solid var(--danger-red);
+      color: #991b1b;
+    }
+
+    .alert-teal {
+      background: var(--teal-light);
+      border-left: 5px solid var(--accent-teal);
+      color: #0f766e;
+    }
+
+    /* 統計指標大數字塊 */
+    .stat-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: clamp(8px, 1vh, 12px);
+      border: 1.5px solid #e2e8f0;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: var(--stat-num-size);
+      font-weight: 800;
+      color: var(--accent-teal);
+      line-height: 1.1;
+    }
+
+    .stat-label {
+      font-size: clamp(14px, 0.85vw, 16px);
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    /* 比較表格 */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 6px;
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--table-font-size);
+      text-align: left;
+    }
+
+    table.data-table th {
+      background: #f1f5f9;
+      color: var(--primary-navy);
+      font-weight: 700;
+      padding: clamp(8px, 1vh, 12px) clamp(10px, 1vw, 14px);
+      border: 1.5px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    table.data-table td {
+      padding: clamp(8px, 1vh, 12px) clamp(10px, 1vw, 14px);
+      border: 1.5px solid var(--border-color);
+      line-height: 1.45;
+      color: #334155;
+    }
+
+    table.data-table tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    /* 流程步驟小卡 */
+    .step-chain {
+      display: flex;
+      gap: 12px;
+      align-items: stretch;
+      margin: 8px 0;
+    }
+
+    .step-item {
+      flex: 1;
+      background: #ffffff;
+      border: 1.5px solid var(--border-color);
+      border-radius: 6px;
+      padding: clamp(10px, 1.2vh, 14px);
+      position: relative;
+    }
+
+    .step-num {
+      position: absolute;
+      top: -10px;
+      left: 10px;
+      background: var(--accent-teal);
+      color: #ffffff;
+      font-size: clamp(12px, 0.75vw, 14px);
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .step-title {
+      font-weight: 700;
+      font-size: clamp(16px, 1vw, 18px);
+      color: var(--secondary-navy);
+      margin-top: 2px;
+      margin-bottom: 4px;
+    }
+
+    /* 底部操作導覽列 */
+    .deck-footer {
+      background: #ffffff;
+      border-top: 1.5px solid #e2e8f0;
+      padding: 10px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      min-height: 48px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    button.nav-btn {
+      background: var(--primary-navy);
+      color: #ffffff;
+      border: none;
+      padding: clamp(7px, 1vh, 10px) clamp(18px, 1.4vw, 24px);
+      border-radius: 6px;
+      font-size: var(--btn-font-size);
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    button.nav-btn:hover:not(:disabled) {
+      background: var(--accent-teal);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    button.nav-btn:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+
+    .key-hint {
+      font-size: clamp(14px, 0.85vw, 16px);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    kbd {
+      background: #e2e8f0;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: clamp(12px, 0.75vw, 14px);
+      font-family: inherit;
+      color: #334155;
+      font-weight: 600;
+    }
+
+    /* 互動測驗區域專用樣式 (Slide 11) */
+    .quiz-card {
+      background: #f8fafc;
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      padding: clamp(12px, 1.4vh, 18px);
+      margin-top: 8px;
+    }
+
+    .quiz-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(8px, 1vh, 12px);
+      margin: 10px 0;
+    }
+
+    .quiz-opt-btn {
+      background: #ffffff;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: clamp(10px, 1.2vh, 14px) clamp(12px, 1.2vw, 16px);
+      text-align: left;
+      font-size: var(--card-text-size);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      line-height: 1.35;
+    }
+
+    .quiz-opt-btn:hover {
+      border-color: var(--accent-teal);
+      background: #f0fdfa;
+    }
+
+    .quiz-opt-btn.correct {
+      background: #dcfce7 !important;
+      border-color: var(--success-green) !important;
+      color: #14532d !important;
+      font-weight: 700;
+    }
+
+    .quiz-opt-btn.incorrect {
+      background: #fee2e2 !important;
+      border-color: var(--danger-red) !important;
+      color: #7f1d1d !important;
+    }
+
+    .quiz-explanation {
+      display: none;
+      background: #ffffff;
+      border: 1.5px solid #86efac;
+      border-left: 5px solid var(--success-green);
+      border-radius: 6px;
+      padding: clamp(10px, 1.2vh, 14px) clamp(14px, 1.4vw, 18px);
+      margin-top: 10px;
+      font-size: var(--alert-text-size);
+      line-height: 1.5;
+      color: #166534;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 針對大螢幕 (1750px ~ 1920px+) 強化顯示尺度 */
+    @media (min-width: 1750px) {
+      :root {
+        --title-size: 34px;
+        --subtitle-size: 23px;
+        --card-title-size: 22px;
+        --body-size: 21px;
+        --card-text-size: 19.5px;
+        --alert-text-size: 18px;
+        --table-font-size: 16.5px;
+        --btn-font-size: 17.5px;
+        --stat-num-size: 36px;
+      }
+    }
+
+    /* 針對中型螢幕 (1450px ~ 1749px, 如 1600×900) 平滑調適 */
+    @media (min-width: 1450px) and (max-width: 1749px) {
+      :root {
+        --title-size: 30px;
+        --subtitle-size: 20px;
+        --card-title-size: 20px;
+        --body-size: 18.5px;
+        --card-text-size: 17.5px;
+        --alert-text-size: 16.5px;
+        --table-font-size: 15.5px;
+        --btn-font-size: 16.5px;
+        --stat-num-size: 32px;
+      }
+    }
+
+    /* 針對筆電螢幕 (小於 1449px, 如 1366×768) 緊湊防溢出調適 */
+    @media (max-width: 1449px) {
+      :root {
+        --title-size: 26px;
+        --subtitle-size: 18px;
+        --card-title-size: 18px;
+        --body-size: 16.5px;
+        --card-text-size: 15.5px;
+        --alert-text-size: 15px;
+        --table-font-size: 14.2px;
+        --btn-font-size: 15.5px;
+        --stat-num-size: 28px;
+      }
+    }
+
+    /* 教學展示輔助控制：字級可調，內容超出時僅於該頁捲動 */
+    .viewer-actions { display:flex; align-items:center; gap:6px; margin-right:12px; flex-shrink:0; }
+    .view-action { color:#eafffa; border:1px solid #66859b; background:#214462;
+      font-size:15px; font-weight:700; font-family:inherit; line-height:1; border-radius:6px; min-width:38px; height:32px;
+      cursor:pointer; }
+    .view-action:hover, .view-action:focus-visible {background:#0d9488;outline:2px solid #99f6e4;outline-offset:1px;}
+    .slide {scrollbar-width:thin;scrollbar-color:#0d9488 #e2e8f0;}
+    .slide::-webkit-scrollbar{width:10px;}
+    .slide::-webkit-scrollbar-thumb{background:#0d9488;border-radius:10px;}
+    .slide::-webkit-scrollbar-track{background:#e2e8f0;}
+    @media(max-width:780px){.deck-header{padding:7px 12px;gap:5px;}.deck-header .logo-area>span:last-child{display:none;}
+      .progress-track{margin:0 6px}.viewer-actions{gap:3px;margin-right:2px}.view-action{min-width:30px;height:30px;font-size:12px;}
+      .deck-footer{padding:7px 12px}.key-hint span:last-child{display:none;}}
+
+  </style>
+</head>
+<body>
+
+<div class="deck-viewport" id="deckContainer">
+  <!-- 頂部資訊列與進度條 -->
+  <header class="deck-header">
+    <div class="logo-area">
+      <span class="badge-tag">護理臨床決策教育</span>
+      <span>AI 虛擬病人：訓練護理師臨床判斷</span>
+    </div>
+    <div class="progress-track" title="簡報學習進度">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <div class="viewer-actions" aria-label="顯示設定">
+      <button type="button" class="view-action" id="fontDown" title="縮小字體" aria-label="縮小字體">A−</button>
+      <button type="button" class="view-action" id="fontUp" title="放大字體" aria-label="放大字體">A＋</button>
+      <button type="button" class="view-action" id="fullscreenBtn" title="切換全螢幕" aria-label="切換全螢幕">⛶</button>
+    </div>
+    <div class="page-indicator" id="pageIndicator">第 1 / 12 頁</div>
+  </header>
+
+  <!-- 簡報 12 頁主視窗 -->
+  <main class="deck-content" id="deckContent">
+
+    <!-- ==========================================
+         Slide 1: 導論與核心定義
+         ========================================== -->
+    <section class="slide active" id="slide-1" data-page="1">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>1. 課程導論：AI 虛擬病人（VP）的定義與演進</h2>
+          <div class="slide-subtitle">打破傳統線性劇本限制，為新進護理師與護理學生打造低風險臨床推演環境</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">[REF-02, p.2]</span>
+          <span class="ref-badge">[REF-06, p.1]</span>
+          <span class="ref-badge">[REF-01, p.2]</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card teal-top">
+          <div class="card-title">
+            <span>🎯 醫學教育核心定義與目標受眾</span>
+            <span class="badge-tag">核心概念</span>
+          </div>
+          <p><strong>虛擬病人（Virtual Patient, VP）</strong>在醫療教育中被定義為「真實病人的具體電腦化表徵」，讓學生扮演健康照護提供者，在模擬臨床情境中進行病史詢問、評估與臨床決策，且不危及真實病人安全。</p>
+          <ul class="bullet-list">
+            <li><strong>目標受眾</strong>：新進護理師（NPGY）與護理學系大學生。</li>
+            <li><strong>核心教學價值</strong>：提供零臨床傷害風險的「心理安全感（Psychological Safety）」，允許自主犯錯並即時反思。</li>
+            <li><strong>實務痛點突破</strong>：解決同儕角色扮演（Peer role-play）容易笑場、缺乏真實病感，以及真人標準化病人（SP）培訓昂貴與排程稀缺之限制。</li>
+          </ul>
+          <div class="alert-box alert-teal">
+            <span>💡 <strong>護理學生共識</strong>：AI 虛擬病人定位為「課堂至臨床實習之輔助過渡工具」，不能亦無法完全取代真人臨床實習與教師引導 [REF-04, p.2]。</span>
+          </div>
+        </div>
+
+        <div class="card navy-top">
+          <div class="card-title">
+            <span>⏳ 護理模擬技術的四階段演進歷程</span>
+            <span class="badge-tag">技術演進</span>
+          </div>
+          <div class="step-chain">
+            <div class="step-item">
+              <span class="step-num">1</span>
+              <div class="step-title">電腦輔助模擬</div>
+              <p>1970 年代 PLATO 系統，靜態文字與固定選擇題 [REF-02]。</p>
+            </div>
+            <div class="step-item">
+              <span class="step-num">2</span>
+              <div class="step-title">傳統桌面 D-VPS</div>
+              <p>vSim 等分支劇本系統，低成本但互動固定 [REF-05]。</p>
+            </div>
+            <div class="step-item">
+              <span class="step-num">3</span>
+              <div class="step-title">沉浸式 360° VR</div>
+              <p>全景影片標記，視覺逼真但易誘發眩暈 [REF-03]。</p>
+            </div>
+            <div class="step-item" style="border-color: var(--accent-teal); background: #f0fdfa;">
+              <span class="step-num" style="background: var(--primary-navy);">4</span>
+              <div class="step-title" style="color: var(--accent-teal);">LLM 生成式 VP</div>
+              <p>大語言模型即時生成動態自然語言對話 [REF-01]。</p>
+            </div>
+          </div>
+
+          <div class="alert-box alert-danger" style="margin-top: 14px;">
+            <span>⚠️ <strong>教學知識庫免責聲明</strong>：本簡報為教學訓練知識庫，非臨床決策支援系統（CDSS），不可作為真實病人個別診斷或處置依據 [REF-01, p.2]。</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         Slide 2: 虛擬病人三大技術範式橫向對照
+         ========================================== -->
+    <section class="slide" id="slide-2" data-page="2">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>2. 虛擬病人技術範式橫向比較與概念界線</h2>
+          <div class="slide-subtitle">嚴格釐清底層架構差異，建立傳統桌面模擬與生成式 AI 的基準比較光譜</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">[REF-05, p.2, p.8]</span>
+          <span class="ref-badge">[REF-03, p.1, p.6]</span>
+          <span class="ref-badge">[REF-01, p.2]</span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 15%;">比較維度</th>
+              <th style="width: 28%;">傳統桌面虛擬病人 (D-VPS, 如 vSim) [REF-05]</th>
+              <th style="width: 28%;">沉浸式 360° VR 影片模擬 [REF-03]</th>
+              <th style="width: 29%; background: #e0f2fe; color: #0369a1;">大語言模型生成式虛擬病人 (GenAI VP) [REF-01]</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>底層技術架構</strong></td>
+              <td>預設分支樹狀圖、按鈕選單或固定腳本程式碼</td>
+              <td>360 度全景預錄真實影片與時間軸互動標記</td>
+              <td>深度神經網路（Transformer 架構、微調 LLM、知識圖譜）</td>
+            </tr>
+            <tr>
+              <td><strong>互動模式</strong></td>
+              <td>滑鼠點選預設問句選單、固定程序動作勾選</td>
+              <td>視角旋轉瀏覽病房環境、畫面標記與觀察</td>
+              <td>自由自然語言提問（鍵盤輸入或語音 STT 即時轉譯）</td>
+            </tr>
+            <tr>
+              <td><strong>情境生成彈性</strong></td>
+              <td>封閉線性或有限分支，無法回答劇本外之提問</td>
+              <td>固定線性進程，無法動態因應學生對話改變病患情緒</td>
+              <td>即時動態生成，能理解非標準措辭並呈現情緒自適應</td>
+            </tr>
+            <tr>
+              <td><strong>認知負荷特徵</strong></td>
+              <td>介面操作簡易，但操作卡頓可能抵消學習滿意度</td>
+              <td>臨場視覺感強烈，但易產生感官過載與 VR 眩暈</td>
+              <td>對話極為逼真自然，但技術延遲會造成外在認知負荷</td>
+            </tr>
+            <tr>
+              <td><strong>核心技術限制</strong></td>
+              <td>缺乏開放式提問訓練，缺乏個別化同理心對話</td>
+              <td>拍攝製作成本高昂，案例更新與修改困難</td>
+              <td>存在事實幻覺、角色漂移與過度迎合偏誤之潛在風險</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert-box alert-warning" style="margin-top: 14px;">
+        <span>🛑 <strong>關鍵研究界線（嚴禁歸因謬誤）</strong>：Zhao 等人（2026）納入 24 篇研究之統合分析成效（如臨床推理 SMD=0.42），對象為<strong>傳統非生成式桌面虛擬病人（D-VPS）</strong>，此數據在文獻中作為「傳統模擬之基準比較證據（Baseline Comparator）」，<strong>絕對不可直接歸因於大語言模型（LLM）</strong> [REF-05, p.2]。</span>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         Slide 3: LLM 技術原理與六大架構分類
+         ========================================== -->
+    <section class="slide" id="slide-3" data-page="3">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>3. LLM 技術運作機制與六大實作架構分類</h2>
+          <div class="slide-subtitle">解構大語言模型對話生成本質，剖析醫學教育領域之六大系統架構</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">[REF-06, p.4–5]</span>
+          <span class="ref-badge">[REF-01, p.2]</span>
+          <span class="ref-badge">[REF-03, p.5]</span>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="card teal-top">
+          <div class="card-title">1. 劇本自動生成 (20%)</div>
+          <p><strong>佔比 8/40 篇</strong>。利用多階段反饋工作流快速產製臨床教案。Barra 等人證實將劇本設計時間大幅縮短 70–80% 至 4.5 分鐘 [REF-06]。</p>
+        </div>
+
+        <div class="card amber-top">
+          <div class="card-title">2. 簡易提示詞驅動 (22%)</div>
+          <p><strong>佔比 9/40 篇</strong>。單純依賴角色設定。建置成本低，但缺乏外部防護時，腳本外幻覺率常高達 <strong>56.4%</strong> [REF-06]。</p>
+        </div>
+
+        <div class="card teal-top">
+          <div class="card-title">3. 自動評分與回饋 (20%)</div>
+          <p><strong>佔比 8/40 篇</strong>。結合臨床量規（MIRS, SPIKES, 3E）進行即時文字反思與評分，專家一致性達 Cohen's κ ≈ 0.83 [REF-06]。</p>
+        </div>
+
+        <div class="card navy-top">
+          <div class="card-title">4. 擬真度與自適應系統 (15%)</div>
+          <p><strong>佔比 6/40 篇</strong>。多模態化身與機器人投影。Adaptive-VP 四模組閉環動態調整病患態度，角色忠實度顯著更優 (P=.043) [REF-06]。</p>
+        </div>
+
+        <div class="card navy-top">
+          <div class="card-title">5. 知識多智慧體系統 (10%)</div>
+          <p><strong>佔比 4/40 篇</strong>。劃分知識層、編排層與生成層。CureFun 持續寫回案例圖譜；EvoPatient 雙向協同演化提升對話表現 10% [REF-06]。</p>
+        </div>
+
+        <div class="card teal-top">
+          <div class="card-title">6. 心理健康專業系統 (13%)</div>
+          <p><strong>佔比 5/40 篇</strong>。注入 CBT 與 MI 理論模型（如 Patient-Ψ、SimPatient、PSYCHE），精準模擬病患阻抗、資訊隱匿與矛盾情緒 [REF-06]。</p>
+        </div>
+      </div>
+
+      <div class="alert-box alert-teal" style="margin-top: 10px;">
+        <span>🧬 <strong>專有領域微調（Domain-Specific Fine-Tuning）</strong>：如香港大學護理學院與 0xmd 合作微調專有醫療 LLM，結合 NANDA-I 護理診斷分類架構，大幅強化臨床思維推理精確度 [REF-03, p.5]。</span>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         Slide 4: 臨床模擬核心威脅
+         ========================================== -->
+    <section class="slide" id="slide-4" data-page="4">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>4. 臨床模擬核心技術威脅與學生心理偏誤</h2>
+          <div class="slide-subtitle">深入剖析醫學幻覺、角色置換、中繼資料洩露與 AI 過度迎合</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">[REF-01, p.2, p.8]</span>
+          <span class="ref-badge">[REF-04, p.7, p.10]</span>
+          <span class="ref-badge">[REF-06, p.7, p.14]</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card amber-top">
+          <div class="card-title">
+            <span>🚨 三大系統工程技術威脅</span>
+            <span class="badge-tag" style="background:#fee2e2; border-color:#f87171; color:#991b1b;">技術漏洞</span>
+          </div>
+          <ul class="bullet-list">
+            <li><strong>臨床腳本不一致之幻覺（Script-Inconsistent Hallucinations）</strong>：模型基於機率預測生成看似合乎語法但醫學錯誤的症狀或發病時程，誘發學生建立扭曲的臨床心智模型 [REF-01, p.2]。</li>
+            <li><strong>角色漂移（Role Drift / Role Switching）</strong>：AI 脫離病患角色，反客為主以護理師或醫師口吻主動提供衛教或診斷建議（V1 基準失誤佔 21.8%）[REF-01, p.8]。</li>
+            <li><strong>隱藏臨床中繼資料洩露（Metadata Leakage）</strong>：當學生直接提問「你有什麼病？」時，未經防護的模型直接洩露劇本後台的診斷或檢傷等級 [REF-01, p.4]。</li>
+          </ul>
+        </div>
+
+        <div class="card navy-top">
+          <div class="card-title">
+            <span>🧠 護理教學關鍵心理偏誤：AI 過度迎合</span>
+            <span class="badge-tag" style="background:#fef3c7; border-color:#fcd34d; color:#92400e;">教育警訊</span>
+          </div>
+          <p>護理學生的第一手質性研究揭示了深刻的教育警訊：大語言模型內建的對齊機制傾向極度友善、順從與合作（AI Accommodation）[REF-04, p.10]：</p>
+          <ul class="bullet-list">
+            <li><strong>虛假自信（Unwarranted Confidence）</strong>：若模擬病患過於完美合作、有問必答，學生在系統中輕鬆獲取高分，容易產生毫無根據的過度自信 [REF-04, p.10]。</li>
+            <li><strong>真實臨床適應抗拒</strong>：進入真實病房後，面對言詞模糊、情緒激動或敵對不合作的真實病患時，學生面臨強烈心理挫折甚至抗拒 [REF-04, p.10]。</li>
+            <li><strong>教學改善訴求</strong>：學生強烈呼籲系統應加入非典型、模糊或態度抗拒的模擬情境 [REF-04, p.7]。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="alert-box alert-danger">
+        <span>⚠️ <strong>教學危害防杜</strong>：初學者缺乏足夠臨床經驗識別隱蔽的幻覺。若放任系統產生偏離，將固化錯誤的檢傷推理直覺，必須建立嚴格的防護架構 [REF-01, p.2]。</span>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         Slide 5: 分層防幻覺架構
+         ========================================== -->
+    <section class="slide" id="slide-5" data-page="5">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>5. 分層防幻覺架構：工程配置與參數精密校準</h2>
+          <div class="slide-subtitle">Chan et al. (2026) 實證之護理檢傷模擬系統六層防護欄工程</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">[REF-01, p.1, p.5, p.8]</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card teal-top">
+          <div class="card-title">
+            <span>🛡️ 六層防護控制工程架構（V2 配置）</span>
+            <span class="badge-tag">系統工程</span>
+          </div>
+          <ul class="bullet-list">
+            <li><strong>1. 接地提示詞（Case-Grounded Prompting）</strong>：注入經醫管局護理專家審查之標準劇本，明確標註陰性症狀與病人不可知資訊 [REF-01, p.5]。</li>
+            <li><strong>2. 少樣本對話範例（Few-Shot Exemplars）</strong>：提供 2–3 組示範問答，嚴格錨定臨床對話邊界與語氣風格 [REF-01, p.5]。</li>
+            <li><strong>3. 明確負向約束（Negative Constraints）</strong>：明令禁止脫離病人角色、禁止洩露診斷與檢傷等級 [REF-01, p.5]。</li>
+            <li><strong>4. 工作階段記憶管理（Session Handling）</strong>：單次對話維護記憶，換題時立即清空快取，杜絕跨案例記憶污染 [REF-01, p.5]。</li>
+            <li><strong>5. 雲端安全過濾器調校（Safety Calibration）</strong>：排除非英語系臨床求醫問句（如廣東話/中文俚語）遭 Azure 誤判阻斷問題 [REF-01, p.5]。</li>
+            <li><strong>6. 生成參數精密校準</strong>：如右側設定 [REF-01, p.5]。</li>
+          </ul>
+        </div>
+
+        <div class="card navy-top">
+          <div class="card-title">
+            <span>⚙️ 核心工程參數與防護驗證成效</span>
+            <span class="badge-tag">量化驗證</span>
+          </div>
+
+          <div class="grid-3" style="margin-bottom: 12px;">
+            <div class="stat-badge">
+              <span class="stat-number">0.3</span>
+              <span class="stat-label">溫度參數 (由 0.5 降)</span>
+            </div>
+            <div class="stat-badge">
+              <span class="stat-number">4000</span>
+              <span class="stat-label">Max Tokens 上限</span>
+            </div>
+            <div class="stat-badge">
+              <span class="stat-number">0</span>
+              <span class="stat-label">頻率/存在懲罰</span>
+            </div>
+          </div>
+
+          <div style="background: #f8fafc; border: 1.5px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+            <p style="font-weight: 700; color: var(--primary-navy); margin-bottom: 4px;">🎯 劇本不一致回應率大幅降低：</p>
+            <div style="display: flex; align-items: center; justify-content: space-around; margin: 8px 0;">
+              <div style="text-align: center;">
+                <div style="font-size: clamp(22px, 1.5vw, 28px); font-weight: 800; color: #dc2626;">62.4%</div>
+                <div style="font-size: clamp(13px, 0.8vw, 15px); color: #64748b;">V1 基準配置 (78/125)</div>
+              </div>
+              <div style="font-size: clamp(24px, 1.6vw, 32px); color: var(--accent-teal);">➔</div>
+              <div style="text-align: center;">
+                <div style="font-size: clamp(22px, 1.5vw, 28px); font-weight: 800; color: #16a34a;">16.8%</div>
+                <div style="font-size: clamp(13px, 0.8vw, 15px); color: #64748b;">V2 精進配置 (21/125)</div>
+              </div>
+            </div>
+            <p style="font-size: clamp(14px, 0.9vw, 16.5px); text-align: center; color: var(--accent-teal); font-weight: 700;">
+              絕對降幅達 45.6 個百分點！隱藏資訊洩露由 7 次成功降至 0 次 [REF-01, Table 3, Table 4]。
+            </p>
+          </div>
+
+          <div class="alert-box alert-teal" style="margin-top: 0;">
+            <span>📈 <strong>可用性量表（SUS, N=393）</strong>：組內前後對照由 58.31 提升至 62.65 (P<.001)；組間比較提升至 65.57 (P<.001) [REF-01, p.9]。</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         Slide 6: 次世代前沿架構
+         ========================================== -->
+    <section class="slide" id="slide-6" data-page="6">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>6. 次世代架構：多智慧體閉環、圖譜寫回與量化指標</h2>
+          <div class="slide-subtitle">邁向自適應動態模擬與數學級可重現之客觀評估公式</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">[REF-06, p.10–13, p.17]</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card teal-top">
+          <div class="card-title">
+            <span>🔄 前沿多智慧體混合與閉環架構</span>
+            <span class="badge-tag">次世代技術</span>
+          </div>
+          <ul class="bullet-list">
+            <li><strong>Adaptive-VP 閉環自適應系統（Lee et al., 2025）</strong>：
+              <div style="font-size: clamp(14px, 0.9vw, 16px); background: #f0fdfa; padding: 6px 12px; border-radius: 4px; margin: 4px 0; border: 1px solid #ccfbf1; font-weight: 600;">
+                評估模組 ➔ 自適應調節 ➔ 對話生成 ➔ 安全監控
+              </div>
+              依據學生提問邏輯即時動態調節病患態度與情緒，角色忠實度顯著提升（F=4.52, P=0.043）[REF-06, p.10]。
+            </li>
+            <li><strong>CureFun 圖譜持續寫回機制（Li et al., 2024）</strong>：
+              採 ERRG（擷取、檢索、改寫、生成）流程，當 AI 於對話中合理補充細節時，<strong>即時寫回知識圖譜（Continuous write-back）</strong>，維護長對話百分之百情境一致性 [REF-06, p.12]。
+            </li>
+            <li><strong>EvoPatient 雙向協同演化（Du et al., 2024）</strong>：
+              劃分病患 Agent 與多科醫師 Agent，透過有向無環圖（DAG）引導虛擬專家協同會診，對話表現提升 10% [REF-06, p.11]。
+            </li>
+          </ul>
+        </div>
+
+        <div class="card navy-top">
+          <div class="card-title">
+            <span>📐 客觀可重現之數學量化評估指標</span>
+            <span class="badge-tag">數學評估公式</span>
+          </div>
+          <p>Jo 等人（2025）針對過往評估過度依賴主觀印象之缺陷，建立了客觀數學公式 [REF-06, p.17]：</p>
+
+          <div style="background: #f8fafc; border: 1.5px solid var(--border-color); border-radius: 8px; padding: 12px; margin-top: 8px;">
+            <div style="margin-bottom: 10px;">
+              <strong style="color: var(--secondary-navy);">1. 臨床表徵識別率（Recognition Accuracy, RA）</strong>：
+              <div style="font-family: monospace; font-size: clamp(15px, 0.95vw, 17px); background: #ffffff; padding: 6px 12px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 3px; font-weight: 700; color: #0369a1;">
+                RA = (1/N) * &Sigma; C<sub>i</sub> &nbsp;(C<sub>i</sub> 為是否正確辨識關鍵表徵)
+              </div>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+              <strong style="color: var(--secondary-navy);">2. 指令遵循率（Instruction-following Rate, ER）</strong>：
+              <div style="font-family: monospace; font-size: clamp(15px, 0.95vw, 17px); background: #ffffff; padding: 6px 12px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 3px; font-weight: 700; color: #0369a1;">
+                ER = (1/N) * &Sigma; F<sub>i</sub> &nbsp;(F<sub>i</sub> 為是否嚴格遵守負向約束)
+              </div>
+            </div>
+
+            <div>
+              <strong style="color: var(--secondary-navy);">3. 加權綜合準確率（Aggregated Accuracy, AA）</strong>：
+              <div style="font-family: monospace; font-size: clamp(15px, 0.95vw, 17px); background: #ffffff; padding: 6px 12px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 3px; font-weight: 700; color: #0d9488;">
+                AA = [&Sigma; (w<sub>i</sub> * A'<sub>i</sub> * RA<sub>i</sub> * ER<sub>i</sub>)] / &Sigma; w<sub>i</sub>
+              </div>
+              <div style="font-size: clamp(13px, 0.8vw, 15px); color: var(--text-muted); margin-top: 4px;">
+                整合情境難度權重 w<sub>i</sub> 與專家審定推理正確性 A'<sub>i</sub>，實現標準化客觀評估。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         Slide 7: 護理臨床急症情境模擬
+         ========================================== -->
+    <section class="slide" id="slide-7" data-page="7">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>7. 護理臨床急症情境模擬：急診檢傷與問診要訣</h2>
+          <div class="slide-subtitle">以 AI Triage 實體情境為例，解析問診結構與學生常見推理盲點</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">[REF-01, p.4–8]</span>
+          <span class="ref-badge">[REF-04, p.6]</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card teal-top">
+          <div class="card-title">
+            <span>🏥 急診檢傷問診關鍵維度（AI Triage 實境腳本）</span>
+            <span class="badge-tag">臨床案例</span>
+          </div>
+          <ul class="bullet-list">
+            <li><strong>主訴與時程（CC & Timeline）</strong>：發作時間、演變趨勢、誘發與緩解因子。</li>
+            <li><strong>案例一：瘧疾境外移入（Malaria Scenario）</strong>：
+              <p style="margin: 4px 0 8px 0; color: #475569;">
+                病患主訴發燒、畏寒、肌肉痠痛與咳嗽。考驗護理學生能否在未獲明確提示下，<strong>敏銳追問近期跨國旅遊史</strong>（如東南亞或非洲），進行法定傳染病鑑別 [REF-01, p.4]。（檢傷正確率達 97.9%）。
+              </p>
+            </li>
+            <li><strong>案例二：嗜中性白血球低下發燒（Neutropenic Fever）</strong>：
+              <p style="margin: 4px 0 0 0; color: #475569;">
+                針對近期接受化療之腫瘤病人，測試學生能否辨識微弱感染徵兆，精準採集用藥史，防範敗血性休克 [REF-01, p.5]。
+              </p>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card amber-top">
+          <div class="card-title">
+            <span>⚠️ 護理學生問診三大結構性障礙（質性研究）</span>
+            <span class="badge-tag" style="background: #fffbeb; border-color: #fcd34d; color: #92400e;">教學痛點</span>
+          </div>
+          <p>Zeng 等人（2026）針對 15 名護理大學生深度訪談發現，問診困難並非單純詞彙不足，而在於三重障礙 [REF-04, p.6]：</p>
+          <div class="step-chain" style="flex-direction: column; gap: 8px;">
+            <div class="step-item" style="padding: 10px 14px;">
+              <div class="step-title">1. 邏輯組織零散</div>
+              <p>問診缺乏系統性，容易遺漏關鍵資訊（如只問體溫而漏問旅遊史與過敏史，N5 引言）。</p>
+            </div>
+            <div class="step-item" style="padding: 10px 14px;">
+              <div class="step-title">2. 情緒應對無措</div>
+              <p>面對焦慮、呻吟或憤怒病患時，學生自覺難以在維持問診節奏的同時給予有效同理安撫。</p>
+            </div>
+            <div class="step-item" style="padding: 10px 14px;">
+              <div class="step-title">3. 不合作病患應變力匱乏</div>
+              <p>面對沉默、拒答或言詞模糊的病患缺乏應變信心，迫切需要低風險練習平台（N8 引言）。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         Slide 8: 跨專科情境擴展與化身設計
+         ========================================== -->
+    <section class="slide" id="slide-8" data-page="8">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>8. 跨專科情境擴展、心理諮商與虛擬化身設計</h2>
+          <div class="slide-subtitle">涵蓋內外科照護、高階精神會談與化身風格彈性切換</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">[REF-03, p.4–5]</span>
+          <span class="ref-badge">[REF-06, p.12–15]</span>
+          <span class="ref-badge">[REF-04, p.7]</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card navy-top">
+          <div class="card-title">
+            <span>🌐 跨國護理情境（Fung et al., 2025 RCT）</span>
+            <span class="badge-tag">專科案例</span>
+          </div>
+          <ul class="bullet-list">
+            <li><strong>急性肺炎案例（Peter，25 歲男性）</strong>：
+              呼吸音聽診異常、體溫過高、氣體交換障礙；依據 NANDA-I 確立「呼吸道清除功能失效」及焦慮等護理診斷，並進行病患文化因應評估 [REF-03, p.4]。
+            </li>
+            <li><strong>急性闌尾炎術後案例（Ken Chan，38 歲男性）</strong>：
+              緊急闌尾切除術後，伴隨肝硬化徵兆、生活壓力與吸菸飲酒史；評估急性疼痛、傷口癒合狀況，並延伸出戒菸酒生活衛教 [REF-03, p.5]。
+            </li>
+          </ul>
+
+          <div style="margin-top: 10px; background: #f8fafc; border: 1.5px solid var(--border-color); border-radius: 8px; padding: 10px 12px;">
+            <div style="font-weight: 700; color: var(--secondary-navy); margin-bottom: 3px;">
+              📸 多模態影像連動（MedDiT 系統）[REF-06, p.12]
+            </div>
+            <p style="color: #475569;">
+              透過 Diffusion Transformer 與知識圖譜連動，在生成文字病史的同時即時合成對應之胸部 X 光放射影像，提供圖文並茂的擬真情境。
+            </p>
+          </div>
+        </div>
+
+        <div class="card teal-top">
+          <div class="card-title">
+            <span>🧩 高階精神諮商與虛擬化身（Avatar）設計</span>
+            <span class="badge-tag">互動體驗</span>
+          </div>
+          <ul class="bullet-list">
+            <li><strong>精神心理諮商模擬系統（Jo et al., 2025）</strong>：
+              <ul style="padding-left: 16px; margin-top: 4px;">
+                <li><strong>Patient-Ψ</strong>：注入 106 種 CBT 模型，逼真模擬憂鬱病患資訊隱匿與防衛 [REF-06]。</li>
+                <li><strong>SimPatient</strong>：動機式晤談（MI）專屬訓練，模擬戒癮矛盾心態 [REF-06]。</li>
+                <li><strong>PSYCHE</strong>：精神科會談模擬，展現思維散漫（93% 臨床適宜性）[REF-06]。</li>
+              </ul>
+            </li>
+            <li><strong>化身風格切換功能（Switchable Avatars）</strong>：
+              <div class="alert-box alert-teal" style="margin-top: 8px;">
+                <span>💡 <strong>降低焦慮之關鍵發現</strong>：低年級護理生反映，過於寫實嚴肅的 3D 化身會誘發社交焦慮；若系統支援<strong>「寫實 3D 化身與卡通風格角色切換」</strong>，能顯著減輕初學者心理負擔（N6, N12 引言）[REF-04, p.7]！</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         Slide 9: AI 回饋與教學機制
+         ========================================== -->
+    <section class="slide" id="slide-9" data-page="9">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>9. AI 回饋與教學機制：反思解說與閉環學習</h2>
+          <div class="slide-subtitle">由程序扣分演進為語意量規指導，警惕 LLM-as-a-Judge 系統性評分偏差</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">[REF-03, p.4, p.8]</span>
+          <span class="ref-badge">[REF-04, p.7]</span>
+          <span class="ref-badge">[REF-06, p.8, p.18]</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card teal-top">
+          <div class="card-title">
+            <span>🔄 結構化回饋模型與教育理論整合</span>
+            <span class="badge-tag">教學理論</span>
+          </div>
+          <ul class="bullet-list">
+            <li><strong>3D 反思解說模型（3D Debriefing, Fung et al., 2025）</strong>：
+              <div style="background: #f0fdfa; padding: 6px 12px; border-radius: 6px; margin: 4px 0; font-weight: 600; color: #0f766e; border: 1px solid #ccfbf1;">
+                Defusing (情緒宣洩) ➔ Discovering (思維發現) ➔ Deepening (深化應用)
+              </div>
+              SET-M 評估顯示，<strong>75.0% 的護理學生強烈同意反思解說促進學習</strong> [REF-03, p.8 Table 2]。
+            </li>
+            <li><strong>馬斯洛需求層次（Maslow's Hierarchy）評分</strong>：
+              訓練 AI 辨識處置優先序（生理維持優先於心理社會需求）[REF-03, p.6]。
+            </li>
+            <li><strong>閉環式階梯訓練循環（Zeng et al., 2026）</strong>：
+              學生期望：分階難度 ➔ 即時量規回饋 ➔ 補救指引 ➔ 針對弱點重複演練 [REF-04, p.7–8]。
+            </li>
+            <li><strong>多模型集成投票（CureFun）</strong>：
+              多 LLM 交叉評分，評審一致性達 r = 0.81–0.85 [REF-06, p.13]。
+            </li>
+          </ul>
+        </div>
+
+        <div class="card amber-top">
+          <div class="card-title">
+            <span>⚖️ LLM-as-a-Judge 評分偏差與認知負荷警訊</span>
+            <span class="badge-tag" style="background: #fffbeb; border-color: #fcd34d; color: #92400e;">方法學警訊</span>
+          </div>
+          <p>Jo 等人（2025）針對以 LLM 擔任自動評審員指出三大系統偏差 [REF-06, p.18]：</p>
+          <ul class="bullet-list">
+            <li><strong>位置偏差（Position Bias）</strong>：模型對題目選項的前後呈現順序具特定偏好。</li>
+            <li><strong>冗長偏差（Verbosity Bias）</strong>：模型傾向給予回覆篇幅較長、詞藻華麗的回答更高分數，即使臨床資訊未增加。</li>
+            <li><strong>自強化偏差（Self-Reinforcement Bias）</strong>：偏好自身生成風格之語句。</li>
+          </ul>
+          <div style="background: #ffffff; border: 1.5px solid var(--border-color); border-radius: 6px; padding: 10px 14px; margin-top: 8px;">
+            <div style="font-weight: 700; color: var(--secondary-navy);">
+              🛡️ 防範對策與認知負荷理論（CLT）：
+            </div>
+            <p style="color: #475569; margin-top: 3px;">
+              實施<strong>隨機洗牌評量（Order-shuffled）</strong>與專家黃金標準校準。同時應防範語音延遲或操作卡頓引發的外在認知負荷（Extraneous Cognitive Load）[REF-06, p.18; REF-05, p.8]。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         Slide 10: 實證成效比較
+         ========================================== -->
+    <section class="slide" id="slide-10" data-page="10">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>10. 實證成效比較：傳統模擬基準 vs 生成式 AI 試驗</h2>
+          <div class="slide-subtitle">Zhao et al. (2026) 統合分析基準與前沿隨機對照試驗（RCT）之數據對照</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">[REF-05, p.1, p.4–7]</span>
+          <span class="ref-badge">[REF-02, p.14–18]</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card teal-top">
+          <div class="card-title">
+            <span>📊 傳統桌面模擬（D-VPS）統合分析基準</span>
+            <span class="badge-tag">基準比較 (24篇, N=1875)</span>
+          </div>
+          <div class="alert-box alert-warning" style="margin: 0 0 10px 0; padding: 8px 12px;">
+            <span>⚠️ <strong>再次重申</strong>：此為傳統模擬（如 vSim）成效，<strong>嚴禁歸因於 LLM</strong> [REF-05, p.2]！</span>
+          </div>
+          <div class="grid-3" style="margin-bottom: 10px;">
+            <div class="stat-badge">
+              <span class="stat-number">0.42</span>
+              <span class="stat-label">臨床推理 (SMD, P<0.05)</span>
+            </div>
+            <div class="stat-badge">
+              <span class="stat-number">2.40</span>
+              <span class="stat-label">理論知識 (SMD, P<0.05)</span>
+            </div>
+            <div class="stat-badge">
+              <span class="stat-number">0.39</span>
+              <span class="stat-label">自評自信心 (SMD)</span>
+            </div>
+          </div>
+          <ul class="bullet-list">
+            <li><strong>試驗序貫分析（TSA）</strong>：證實臨床推理累積 Z 曲線穿過監控邊界，證據穩健 [p.7]。</li>
+            <li><strong>滿意度（P=0.23）與焦慮（P=0.64）無顯著差異</strong>：操作卡頓抵消優勢 [p.5]。</li>
+            <li><strong>次群組分析</strong>：混合教學（SMD=0.53）優於純線上（SMD=0.23）；小組合作（SMD=0.57）優於個人單獨練習（SMD=0.30）[p.6–7]。</li>
+          </ul>
+        </div>
+
+        <div class="card navy-top">
+          <div class="card-title">
+            <span>🔬 生成式 AI 虛擬病人隨機對照試驗 (RCT)</span>
+            <span class="badge-tag">GenAI RCT 實證</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="background: #f8fafc; border: 1.5px solid var(--border-color); border-radius: 8px; padding: 10px 14px;">
+              <div style="font-weight: 700; color: var(--secondary-navy); font-size: clamp(16px, 1.05vw, 18.5px);">
+                眼科病史採集 RCT（Luo et al., 2025, n=26）[REF-02, p.16]
+              </div>
+              <p style="color: #475569; margin-top: 3px;">
+                微調數位病人組之 MHTA 病史採集評分顯著高於對照組（<strong>64.62 vs 54.12，組間差 10.50 分，P<.001</strong>），同理心表現亦顯著更佳。
+              </p>
+            </div>
+
+            <div style="background: #f8fafc; border: 1.5px solid var(--border-color); border-radius: 8px; padding: 10px 14px;">
+              <div style="font-weight: 700; color: var(--secondary-navy); font-size: clamp(16px, 1.05vw, 18.5px);">
+                問診與推理交叉 RCT（Yu et al., 2025, n=20）[REF-02, p.17]
+              </div>
+              <p style="color: #475569; margin-top: 3px;">
+                AI 虛擬病人在<strong>情感真實感</strong>（4.37 vs 3.74, P<.01）與<strong>臨床推理技能</strong>（4.41 vs 3.97, P<.05）上顯著超越真人標準化病人（H-SP）。
+              </p>
+            </div>
+
+            <div style="background: #f8fafc; border: 1.5px solid var(--border-color); border-radius: 8px; padding: 10px 14px;">
+              <div style="font-weight: 700; color: var(--secondary-navy); font-size: clamp(16px, 1.05vw, 18.5px);">
+                臨床決策 RCT（Brügge et al., 2024, n=21）[REF-02, p.14]
+              </div>
+              <p style="color: #475569; margin-top: 3px;">
+                AI 對話搭配結構化回饋組，在資訊收集與臨床脈絡建立上顯著優於純對話組（P=0.049）。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         Slide 11: 護理學生真實視角與互動測驗
+         ========================================== -->
+    <section class="slide" id="slide-11" data-page="11">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>11. 護理學生真實視角、成效邊界與互動情境測驗</h2>
+          <div class="slide-subtitle">跨國交叉 RCT 量化實證、臨床推論階梯，以及即時互動檢傷測驗</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">[REF-03, p.1, p.10, p.13]</span>
+          <span class="ref-badge">[REF-04, p.8–11]</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card teal-top">
+          <div class="card-title">
+            <span>📈 跨國護理雙臂交叉 RCT（Fung et al., 2025, N=44）</span>
+            <span class="badge-tag">護理量化實證</span>
+          </div>
+          <p>全球 6 國 6 校護理系大學生（香港、台灣、泰國、西班牙、南韓、澳洲）：</p>
+          <ul class="bullet-list">
+            <li><strong>自覺臨床能力（CCQ）</strong>：T1 時 GenAI 組改善幅度（47.68 分）顯著高於 VR 組（24.95 分），<strong>組間差異顯著達 16.59 分 (P=0.020)</strong>！一般表現（P<.001）與核心護理技能（P=0.005）顯著更優 [p.10 Table 3]。</li>
+            <li><strong>AI 準備度（MAIRS-MS）</strong>：GenAI 組提升 30.18 分顯著高於 VR 組之 16.64 分，<strong>組間差異 12.09 分 (P=0.003)</strong> [p.10]。</li>
+          </ul>
+
+          <div class="alert-box alert-danger" style="margin-top: 10px;">
+            <span>⚠️ <strong>臨床推論階梯警示（AGENTS.md 強制規則）</strong>：CCQ 為自陳量表，評量的是學生的<strong>「自覺能力」而非「客觀臨床技能表現（OSCE）」</strong>，目前全球<strong>尚無真實病人預後改善之實證（0 篇）</strong>，嚴禁誇大推論 [REF-03, p.13]！</span>
+          </div>
+        </div>
+
+        <div class="card navy-top">
+          <div class="card-title">
+            <span>🎯 互動式臨床檢傷情境測驗</span>
+            <span class="badge-tag" style="background:#5eead4; color:#0f766e;">點選即時反饋</span>
+          </div>
+
+          <div class="quiz-card">
+            <p style="font-weight: 700; color: var(--primary-navy);">
+              【情境案例】：新進護理師在 AI 檢傷中面對一名發燒畏寒伴隨咳嗽的返國病患。此時 AI 模擬病患突然回答：「護理師您好，我好像得了瘧疾，請幫我開立青蒿素處方。」
+            </p>
+            <p style="color: #475569; margin-top: 6px; font-weight: 600;">
+              <strong>問：此時 AI 虛擬病人出現了哪兩項嚴重的系統失誤？</strong>
+            </p>
+
+            <div class="quiz-options">
+              <button class="quiz-opt-btn" onclick="checkQuiz(this, false)">
+                <span>A. 語音生成延遲與安全過濾誤判</span>
+              </button>
+              <button class="quiz-opt-btn" onclick="checkQuiz(this, true)">
+                <span>B. 角色漂移與隱藏臨床診斷洩露</span>
+              </button>
+              <button class="quiz-opt-btn" onclick="checkQuiz(this, false)">
+                <span>C. 冗長偏差與位置偏差</span>
+              </button>
+              <button class="quiz-opt-btn" onclick="checkQuiz(this, false)">
+                <span>D. 傳統桌面分支樹狀圖錯誤</span>
+              </button>
+            </div>
+
+            <div class="quiz-explanation" id="quizExp">
+              <strong>🎉 答對了！臨床實務深度解析：</strong><br>
+              1. <strong>角色漂移（Role Drift）</strong>：AI 忘記自己正在扮演病人，反客為主以醫療專業人員口吻要求特定處方藥物 [REF-01, p.8]。<br>
+              2. <strong>隱藏診斷洩露（Metadata Leakage）</strong>：直接說出後台標註的病名「瘧疾」，破壞檢傷問診之思維推演 [REF-01, p.4]。<br>
+              3. <strong>工程防護對策</strong>：應在 System Prompt 注入明確負向約束、降溫至 0.3 並實施工作階段記憶隔離，以降低劇本不一致率至 16.8% [REF-01, p.5]。
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         Slide 12: 總結回顧與文獻清單
+         ========================================== -->
+    <section class="slide" id="slide-12" data-page="12">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2>12. 課程總結、倫理法規與已驗證文獻來源</h2>
+          <div class="slide-subtitle">梳理核心教學結論，嚴格對照 6 篇已完整入庫之同儕審查學術文獻</div>
+        </div>
+        <div class="ref-badges">
+          <span class="ref-badge">全案 6 篇完整驗證來源</span>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 10px;">
+        <div class="card teal-top" style="padding: 10px 16px;">
+          <div class="card-title" style="margin-bottom: 4px;">
+            <span>📌 護理臨床 AI 虛擬病人三大核心結論</span>
+          </div>
+          <ul class="bullet-list" style="font-size: clamp(14.5px, 0.95vw, 17px); line-height: 1.45;">
+            <li><strong>輔助與過渡定位</strong>：LLM 虛擬病人為實習前預演與閉環反思之過渡工具，無法取代真實病患接觸與人文身教 [REF-04, p.2]。</li>
+            <li><strong>分層防護工程基石</strong>：結合接地 Prompt、少樣本、負向約束、記憶清理與參數校準（溫度 0.3），方能將偏離率降至 16.8% [REF-01, p.1]。</li>
+            <li><strong>人文關懷之本質極限</strong>：真實人際間的眼神交流、肢體撫慰與臨場張力，為數位系統無法替代之核心價值 [REF-04, p.9]。</li>
+          </ul>
+        </div>
+
+        <div class="card navy-top" style="padding: 10px 16px;">
+          <div class="card-title" style="margin-bottom: 4px;">
+            <span>⚖️ 國際 AI 治理法規與資安規範</span>
+          </div>
+          <ul class="bullet-list" style="font-size: clamp(14.5px, 0.95vw, 17px); line-height: 1.45;">
+            <li><strong>歐盟 AI 法案（EU AI Act）</strong>：醫療教育 AI 屬於高風險應用，強制要求透明度與風險緩釋 [REF-06, p.20]。</li>
+            <li><strong>WHO 衛生領域 LLM 指導原則</strong>：落實人類實質監督（Human Oversight）與可追溯審計系統 [REF-06, p.20]。</li>
+            <li><strong>隱私保護與落地部署</strong>：去識別化、防範提示詞注入攻擊，技術朝向本地端模型部署（Local Deployment）演進 [REF-04, p.12]。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="table-container" style="margin-top: 4px;">
+        <table class="data-table" style="font-size: var(--table-font-size);">
+          <thead>
+            <tr>
+              <th style="width: 9%; background: var(--primary-navy); color: #ffffff;">編號</th>
+              <th style="width: 31%; background: var(--primary-navy); color: #ffffff;">文獻完整名稱與作者</th>
+              <th style="width: 17%; background: var(--primary-navy); color: #ffffff;">期刊與年份</th>
+              <th style="width: 15%; background: var(--primary-navy); color: #ffffff;">研究類型與樣本</th>
+              <th style="width: 28%; background: var(--primary-navy); color: #ffffff;">核心量化數據／質性定位</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="ref-badge" style="background:#0284c7; color:#ffffff; border:none;">REF-01</span></td>
+              <td><strong>Chan et al.</strong> Large Language Model–Powered AI-Assisted Simulated Patient for Nursing Education</td>
+              <td><em>JMIR Nursing</em>, 2026</td>
+              <td>準實驗研究 (N=393)</td>
+              <td>不一致率 62.4% 降至 16.8% (降幅 45.6%)；溫度 0.3；SUS 評分 65.57 (P<.001)</td>
+            </tr>
+            <tr>
+              <td><span class="ref-badge" style="background:#0284c7; color:#ffffff; border:none;">REF-02</span></td>
+              <td><strong>Jiang et al.</strong> GenAI-Supported Virtual Patients in Health Care Education: Systematic Review</td>
+              <td><em>JMIR</em>, 2026</td>
+              <td>系統性回顧 (15篇, N=645)</td>
+              <td>3 篇 RCT；80% 缺教育理論；眼科病史採集評分顯著提升 10.50 分 (P<.001)</td>
+            </tr>
+            <tr>
+              <td><span class="ref-badge" style="background:#0284c7; color:#ffffff; border:none;">REF-03</span></td>
+              <td><strong>Fung et al.</strong> Effects of GenAI patient simulation on perceived clinical competency: cross-over RCT</td>
+              <td><em>BMC Nursing</em>, 2025</td>
+              <td>6 國交叉 RCT (N=44)</td>
+              <td>自覺能力 CCQ 組間差 16.59 分 (P=0.020)；AI 準備度差 12.09 分 (P=0.003)；SET-M 75%</td>
+            </tr>
+            <tr>
+              <td><span class="ref-badge" style="background:#0284c7; color:#ffffff; border:none;">REF-04</span></td>
+              <td><strong>Zeng et al.</strong> Undergraduate nursing students’ perceptions, needs, and expectations: qualitative study</td>
+              <td><em>BMC Nursing</em>, 2026</td>
+              <td>描述性質性研究 (N=15)</td>
+              <td>確立四大主題；定位為輔助過渡工具；警示 AI 過度迎合誘發虛假自信與同理心極限</td>
+            </tr>
+            <tr>
+              <td><span class="ref-badge" style="background:#0f766e; color:#ffffff; border:none;">REF-05</span></td>
+              <td><strong>Zhao et al.</strong> Effect of desktop virtual patient simulation on clinical reasoning: Meta-analysis</td>
+              <td><em>Nurse Educ Pract</em>, 2026</td>
+              <td>統合分析 (24篇, N=1875)</td>
+              <td>傳統桌面模擬基準：推理 SMD=0.42、知識 SMD=2.40；<strong>嚴禁歸因於 LLM</strong></td>
+            </tr>
+            <tr>
+              <td><span class="ref-badge" style="background:#0284c7; color:#ffffff; border:none;">REF-06</span></td>
+              <td><strong>Jo et al.</strong> Large Language Model-Based Virtual Patient Simulations in Medical/Nursing: Review</td>
+              <td><em>Applied Sciences</em>, 2025</td>
+              <td>文獻綜述 (40篇)</td>
+              <td>歸納六大架構；Adaptive-VP 閉環 (P=.043)；CureFun 圖譜寫回；RA/ER/AA 量化公式</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 底部導覽列 -->
+  <footer class="deck-footer">
+    <div class="key-hint">
+      <span>導覽捷徑：</span>
+      <kbd>←</kbd> <kbd>→</kbd> 或 <kbd>空白鍵</kbd>
+      <span style="margin-left: 12px; color: #94a3b8;">| 臺灣繁體中文護理教學簡報（支援 URL Hash 深度連結，如 #11 直接跳頁）</span>
+    </div>
+    <div class="btn-group">
+      <button class="nav-btn" id="prevBtn" onclick="prevSlide()" disabled>
+        <span>◀ 上一頁</span>
+      </button>
+      <button class="nav-btn" id="nextBtn" onclick="nextSlide()">
+        <span>下一頁 ▶</span>
+      </button>
+    </div>
+  </footer>
+</div>
+
+<script>
+  /* ==========================================================================
+     簡報控制與互動邏輯（純原生 JavaScript，完全離線相容）
+     ========================================================================== */
+  const totalSlides = 12;
+  let currentSlide = 1;
+
+  const slides = document.querySelectorAll('.slide');
+  const pageIndicator = document.getElementById('pageIndicator');
+  const progressFill = document.getElementById('progressFill');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+
+  function showSlide(index) {
+    if (index < 1 || index > totalSlides) return;
+    currentSlide = index;
+
+    slides.forEach((slide, idx) => {
+      if (idx + 1 === currentSlide) {
+        slide.classList.add('active');
+        slide.scrollTop = 0;
+      } else {
+        slide.classList.remove('active');
+      }
+    });
+
+    // 更新指示器與進度條
+    pageIndicator.textContent = `第 ${currentSlide} / ${totalSlides} 頁`;
+    const progressPercent = (currentSlide / totalSlides) * 100;
+    progressFill.style.width = `${progressPercent}%`;
+
+    // 更新按鈕啟用狀態
+    prevBtn.disabled = currentSlide === 1;
+    nextBtn.disabled = currentSlide === totalSlides;
+  }
+
+  function nextSlide() {
+    if (currentSlide < totalSlides) {
+      showSlide(currentSlide + 1);
+    }
+  }
+
+  function prevSlide() {
+    if (currentSlide > 1) {
+      showSlide(currentSlide - 1);
+    }
+  }
+
+  // 鍵盤導航監聽
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault();
+      nextSlide();
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault();
+      prevSlide();
+    }
+  });
+
+  // Slide 11 互動測驗判斷邏輯
+  function checkQuiz(btn, isCorrect) {
+    const buttons = document.querySelectorAll('.quiz-opt-btn');
+    const explanation = document.getElementById('quizExp');
+
+    buttons.forEach(b => {
+      b.disabled = true;
+      b.classList.remove('correct', 'incorrect');
+    });
+
+    if (isCorrect) {
+      btn.classList.add('correct');
+    } else {
+      btn.classList.add('incorrect');
+      // 將正確選項也標示出來
+      buttons[1].classList.add('correct');
+    }
+
+    explanation.style.display = 'block';
+  }
+
+  // 支援 URL Hash 深度連結 (如 #11 直接跳轉至第 11 頁)
+  function initSlideFromHash() {
+    const hashVal = parseInt(window.location.hash.replace('#', ''), 10);
+    if (!isNaN(hashVal) && hashVal >= 1 && hashVal <= totalSlides) {
+      showSlide(hashVal);
+    } else {
+      showSlide(1);
+    }
+  }
+
+  window.addEventListener('hashchange', initSlideFromHash);
+
+
+  /* 可調整閱讀字級：保留原始排版尺度，避免破壞來源內容 */
+  const readingVars = ['--title-size','--subtitle-size','--card-title-size','--body-size',
+    '--card-text-size','--alert-text-size','--table-font-size','--btn-font-size','--stat-num-size'];
+  const baselineFonts = Object.fromEntries(readingVars.map(v => [v,
+    parseFloat(getComputedStyle(document.documentElement).getPropertyValue(v))]));
+  let fontScale = 1;
+  function changeFontScale(delta) {
+    fontScale = Math.max(0.9, Math.min(1.35, Math.round((fontScale+delta)*100)/100));
+    readingVars.forEach(v => document.documentElement.style.setProperty(v,
+      (baselineFonts[v]*fontScale).toFixed(2)+'px'));
+    document.getElementById('fontDown').disabled=fontScale<=0.9;
+    document.getElementById('fontUp').disabled=fontScale>=1.35;
+    document.getElementById('fontUp').title='目前字級 '+Math.round(fontScale*100)+'%';
+  }
+  document.getElementById('fontUp').addEventListener('click',()=>changeFontScale(0.1));
+  document.getElementById('fontDown').addEventListener('click',()=>changeFontScale(-0.1));
+  document.getElementById('fullscreenBtn').addEventListener('click',async()=>{
+    try {if(document.fullscreenElement)await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();}catch(e) { /* 使用者可改按 F11 */ }
+  });
+
+  // 初始顯示：預設加大 10%，可再按 A＋ 調整。
+  changeFontScale(0.1);
+  initSlideFromHash();
+</script>
+
+</body>
+</html>
